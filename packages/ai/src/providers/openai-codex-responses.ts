@@ -97,6 +97,7 @@ import {
 	planSteeredRequest,
 	toSteerInputItems,
 } from "./openai-codex/live-steering";
+import { resolveCodexExternalSandbox } from "./openai-codex/sandbox-metadata";
 import { CodexApiError } from "./openai-codex/response-handler";
 import { getCodexAttestationHeader } from "./openai-codex-attestation";
 export { createOpenAICodexCompactionRequestContext } from "./openai-codex-compaction";
@@ -192,9 +193,16 @@ export interface OpenAICodexResponsesOptions extends StreamOptions {
 	/**
 	 * Additional fields embedded in the canonical
 	 * `client_metadata["x-codex-turn-metadata"]` JSON blob. Reserved identity
-	 * keys are ignored; extras are never emitted as top-level metadata fields.
+	 * and sandbox keys are ignored; extras are never emitted as top-level
+	 * metadata fields.
 	 */
 	clientMetadata?: Record<string, string>;
+	/**
+	 * Declare that the request already runs inside an externally enforced
+	 * sandbox with reviewed escalations. See
+	 * {@link StreamOptions.codexExternalSandbox}.
+	 */
+	codexExternalSandbox?: boolean;
 	/**
 	 * Turn id of the initiating (parent) Codex turn for nested requests such as
 	 * subagent spawns (codex-rs `parent_turn_id`, #35835). Emitted both as the
@@ -232,6 +240,8 @@ export interface OpenAICodexCompatibilityMetadataOptions {
 	startNewTurn?: boolean;
 	turnStartedAtUnixMs?: number;
 	clientMetadata?: Readonly<Record<string, string>>;
+	/** Declare the same external sandbox metadata as a normal Codex stream request. */
+	codexExternalSandbox?: boolean;
 	/** Parent Codex turn id for nested requests; see {@link OpenAICodexResponsesOptions.parentTurnId}. */
 	parentTurnId?: string;
 	/** Add the direct installation header required by `/responses/compact`. */
@@ -506,6 +516,7 @@ const CODEX_RESERVED_METADATA_KEYS: Record<string, true> = {
 	subagent_kind: true,
 	thread_source: true,
 	sandbox: true,
+	sandbox_mode: true,
 	workspaces: true,
 };
 
@@ -602,6 +613,7 @@ function createCodexRequestMetadata(
 		startNewTurn: boolean;
 		turnStartedAtUnixMs?: number;
 		clientMetadata?: Readonly<Record<string, string>>;
+		codexExternalSandbox?: boolean;
 		parentTurnId?: string;
 		compaction?: CodexCompactionRequestContext;
 		affinitySessionId?: string;
@@ -615,6 +627,7 @@ function createCodexRequestMetadata(
 	// codex-rs `set_parent_turn_id` ignores blank values; keep the original
 	// spelling when non-blank.
 	const parentTurnId = options.parentTurnId?.trim() ? options.parentTurnId : undefined;
+	const sandboxMetadata = resolveCodexExternalSandbox(options.codexExternalSandbox);
 	const extra: Record<string, string> = {};
 	const callerMetadata = options.clientMetadata;
 	if (callerMetadata) {
@@ -631,6 +644,10 @@ function createCodexRequestMetadata(
 		request_kind: requestKind,
 	};
 	if (parentTurnId) turnMetadata.parent_turn_id = parentTurnId;
+	if (sandboxMetadata) {
+		turnMetadata.sandbox = sandboxMetadata.sandbox;
+		turnMetadata.sandbox_mode = sandboxMetadata.sandboxMode;
+	}
 	if (options.compaction) {
 		turnMetadata.compaction = {
 			trigger: options.compaction.trigger,
@@ -697,6 +714,7 @@ export function createOpenAICodexCompatibilityMetadata(
 		startNewTurn,
 		turnStartedAtUnixMs: options.turnStartedAtUnixMs ?? (startNewTurn || !session.turnId ? Date.now() : undefined),
 		clientMetadata: options.clientMetadata,
+		codexExternalSandbox: options.codexExternalSandbox,
 		parentTurnId: options.parentTurnId,
 		compaction: options.compaction,
 	});
@@ -1319,6 +1337,7 @@ function createCodexRequestContext(
 				: undefined
 			: contextOptions.turnStartedAtUnixMs,
 		clientMetadata: transformedBody.client_metadata,
+		codexExternalSandbox: options?.codexExternalSandbox,
 		parentTurnId: options?.parentTurnId,
 		compaction,
 		affinitySessionId: normalizeOpenAIPromptCacheKey(options?.parentSessionId),

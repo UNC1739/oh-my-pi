@@ -141,6 +141,20 @@ describe("createSettingsAwareStreamFn", () => {
 		expect(options?.apiKey).toBe("k");
 	});
 
+	it("forwards Codex external sandbox metadata settings without overriding explicit caller choices", () => {
+		const settings = Settings.isolated({ "providers.openai-codex.externalSandbox": true });
+		const { fn: base, calls } = captureBase();
+		const wrapped = createSettingsAwareStreamFn(settings, base);
+
+		wrapped(stubCodexModel, stubContext, undefined);
+		wrapped(stubCodexModel, stubContext, { codexExternalSandbox: false });
+		wrapped(stubResponsesModel, stubContext, undefined);
+
+		expect(calls[0]?.options?.codexExternalSandbox).toBe(true);
+		expect(calls[1]?.options?.codexExternalSandbox).toBe(false);
+		expect(calls[2]?.options?.codexExternalSandbox).toBeUndefined();
+	});
+
 	it("forwards configured hidden thinking summaries", () => {
 		const settings = Settings.isolated({ omitThinking: true });
 		const { fn: base, calls } = captureBase();

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added Codex support for Red-only Daybreak catalog rows and reviewed external sandbox metadata, enabling hosts that already enforce that boundary to run models such as GPT-5.5-Cyber-Preview and GPT-5.6-Cyber.
+
 ## [18.18.4] - 2026-11-09
 
 ### Added

@@ -610,12 +610,19 @@ export interface StreamOptions {
 	 */
 	storeResponses?: boolean;
 	/**
-	 * Request the Daybreak Blue cyber access program on Codex when the account
-	 * is eligible (see `openai-codex/access-programs.ts`). `false` omits
+	 * Request the highest-priority discovered Daybreak cyber access program on
+	 * Codex (`daybreak_blue` before `daybreak_red`). `false` omits
 	 * `access_programs`. Unset falls back to the host's
 	 * `configureCodexAccessPrograms` default, else on. Ignored elsewhere.
 	 */
 	codexAccessPrograms?: boolean;
+	/**
+	 * Declare that the Codex request already runs inside an externally enforced
+	 * sandbox with reviewed escalations. When `true`, Codex turn metadata carries
+	 * `sandbox = "external"` and `sandbox_mode = "external-sandbox"`.
+	 * This is metadata only: omp does not create that sandbox.
+	 */
+	codexExternalSandbox?: boolean;
 	/**
 	 * Disable native reasoning when the caller supplies an external scratchpad.
 	 * OpenAI Responses emits `reasoning: { effort: "none" }`; Anthropic and

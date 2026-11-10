@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
+import { configureCodexExternalSandbox } from "@oh-my-pi/pi-ai/providers/openai-codex/sandbox-metadata";
 import { type InputItem, transformRequestBody } from "@oh-my-pi/pi-ai/providers/openai-codex/request-transformer";
 import {
 	buildTransformedCodexRequestBody,
@@ -525,6 +526,50 @@ describe("openai-codex Responses Lite and client metadata wire format", () => {
 		expect(turnMetadataHeader).toMatch(/^[\x20-\x7e]+$/);
 		const reparsedTurnMetadata: unknown = turnMetadataHeader ? JSON.parse(turnMetadataHeader) : undefined;
 		expect(requireRecord(reparsedTurnMetadata, "round-tripped turn metadata").workspace_path).toBe("東京/🚀");
+	});
+
+	it("adds reviewed external sandbox metadata only through the first-class option", async () => {
+		const model = createCodexModel("gpt-5.6-cyber");
+		const context = createCodexTestContext();
+		const captured: CapturedCodexRequest[] = [];
+		const fetchMock = createCodexFetchMock(createCodexSse(COMPLETED_CODEX_EVENTS), request => {
+			captured.push(request);
+		});
+
+		configureCodexExternalSandbox(true);
+		try {
+			await streamOpenAICodexResponses(model, context, {
+				apiKey: createCodexTestToken(),
+				fetch: fetchMock,
+				clientMetadata: {
+					sandbox: "forged",
+					sandbox_mode: "danger-full-access",
+					workspace_kind: "repo",
+				},
+			}).result();
+			await streamOpenAICodexResponses(model, context, {
+				apiKey: createCodexTestToken(),
+				fetch: fetchMock,
+				codexExternalSandbox: false,
+			}).result();
+		} finally {
+			configureCodexExternalSandbox(false);
+		}
+
+		const firstMetadata = requireRecord(captured[0]?.body.client_metadata, "first client_metadata");
+		const firstTurnMetadata = parseTurnMetadata(firstMetadata);
+		expect(firstMetadata.sandbox).toBeUndefined();
+		expect(firstMetadata.sandbox_mode).toBeUndefined();
+		expect(firstTurnMetadata).toMatchObject({
+			sandbox: "external",
+			sandbox_mode: "external-sandbox",
+			workspace_kind: "repo",
+		});
+
+		const secondMetadata = requireRecord(captured[1]?.body.client_metadata, "second client_metadata");
+		const secondTurnMetadata = parseTurnMetadata(secondMetadata);
+		expect(secondTurnMetadata.sandbox).toBeUndefined();
+		expect(secondTurnMetadata.sandbox_mode).toBeUndefined();
 	});
 
 	it("keeps the installation identity stable across provider sessions", async () => {

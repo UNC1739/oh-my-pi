@@ -28,6 +28,7 @@ import {
 	cfgProvidersMaxInFlightRequests,
 	cfgProvidersMuseCodeStoreResponses,
 	cfgProvidersOpenaiCodexDaybreak,
+	cfgProvidersOpenaiCodexExternalSandbox,
 	cfgProvidersOpenaiLiveSteering,
 	cfgProvidersOpenaiResponsesWebsockets,
 	cfgProvidersOpenaiWebsockets,
@@ -150,6 +151,9 @@ export function createSettingsAwareStreamFn(
 		const codexAccessPrograms =
 			streamOptions?.codexAccessPrograms ??
 			(model.api === "openai-codex-responses" ? cfgProvidersOpenaiCodexDaybreak.get(settings) : undefined);
+		const codexExternalSandbox =
+			streamOptions?.codexExternalSandbox ??
+			(model.api === "openai-codex-responses" ? cfgProvidersOpenaiCodexExternalSandbox.get(settings) : undefined);
 		const maxInFlightRequests = validateProviderMaxInFlightRequests(
 			streamOptions?.maxInFlightRequests ?? cfgProvidersMaxInFlightRequests.get(settings),
 		);
@@ -195,6 +199,7 @@ export function createSettingsAwareStreamFn(
 				? { fallbacks: undefined, disableServerSideFallback: true }
 				: {}),
 			...(codexAccessPrograms !== undefined ? { codexAccessPrograms } : {}),
+			...(codexExternalSandbox !== undefined ? { codexExternalSandbox } : {}),
 			...(slowModeHooks !== undefined ? { anthropicSlowMode: slowModeHooks } : {}),
 		};
 		return base(model, context, merged);

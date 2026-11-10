@@ -24,6 +24,7 @@ import { DEFAULT_WEB_SEARCH_TIMEOUT_SECONDS, MAX_WEB_SEARCH_TIMEOUT_SECONDS } fr
 import { DEFAULT_USAGE_RESERVE_PCT } from "@oh-my-pi/pi-ai/auth-storage";
 import { configureProviderStoreResponses } from "@oh-my-pi/pi-ai/providers/openai-responses-state";
 import { configureCodexAccessPrograms } from "@oh-my-pi/pi-ai/providers/openai-codex/access-programs";
+import { configureCodexExternalSandbox } from "@oh-my-pi/pi-ai/providers/openai-codex/sandbox-metadata";
 import { configureProviderMaxInFlightRequests } from "@oh-my-pi/pi-ai/stream";
 import { THINKING_EFFORTS } from "@oh-my-pi/pi-catalog/effort";
 import { formatKeyHint } from "@oh-my-pi/pi-tui/app-keybindings";
@@ -1217,14 +1218,29 @@ export const cfgProvidersOpenaiCodexDaybreak = register({
 	ui: {
 		tab: "providers",
 		group: "Protocol",
-		label: "Codex Daybreak Blue",
+		label: "Codex Daybreak",
 		description:
-			"Automatically request the Daybreak Blue cyber access program on ChatGPT accounts eligible for it. OpenAI may use content from Daybreak Blue sessions to improve its models. Does not cover dedicated Daybreak Blue models (gpt-daybreak-blue-*), which may still run as Daybreak sessions.",
+			"Automatically request the preferred discovered Daybreak cyber access program on eligible ChatGPT accounts (Blue first, Red for Red-only models). OpenAI may use content from Daybreak Blue sessions to improve its models.",
 	},
 });
 // Sessions pass their own value per request; this process-wide default covers
 // callers without a session stream function (titles, commit messages, memories).
 effect(cfgProvidersOpenaiCodexDaybreak, enabled => configureCodexAccessPrograms(enabled));
+
+export const cfgProvidersOpenaiCodexExternalSandbox = register({
+	id: "providers.openai-codex.externalSandbox",
+	type: "boolean",
+	default: false,
+	ui: {
+		tab: "providers",
+		group: "Protocol",
+		label: "Codex External Sandbox",
+		description:
+			"Declare that Codex requests already run inside an externally enforced sandbox with reviewed escalations. Required for models such as GPT-5.6-Cyber; omp does not create that sandbox.",
+	},
+});
+// Same side-request coverage as the Daybreak switch above.
+effect(cfgProvidersOpenaiCodexExternalSandbox, enabled => configureCodexExternalSandbox(enabled));
 
 export const cfgProvidersCacheRetention = register({
 	id: "providers.cacheRetention",

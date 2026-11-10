@@ -78,10 +78,11 @@ describe("openai-codex cyber access programs", () => {
 		accountAccess: {
 			"acct-daybreak": { cyberPrograms: ["standard", "daybreak_blue"] },
 			"acct-standard": { cyberPrograms: ["standard"] },
+			"acct-red": { cyberPrograms: ["daybreak_red"] },
 		},
 	});
 
-	it("requests Daybreak Blue only for eligible accounts and drops it for good after a rejection", async () => {
+	it("requests the preferred Daybreak program for each eligible account and drops it after a rejection", async () => {
 		const sent: unknown[] = [];
 		const run = (accountId: string, statuses: number[]) =>
 			streamOpenAICodexResponses(model, context, {
@@ -93,6 +94,10 @@ describe("openai-codex cyber access programs", () => {
 		expect(sent).toEqual([undefined]);
 
 		sent.length = 0;
+		expect((await run("acct-red", [200])).stopReason).toBe("stop");
+		expect(sent).toEqual([{ cyber: "daybreak_red" }]);
+
+		sent.length = 0;
 		const replayed = await run("acct-daybreak", [403, 200]);
 		expect(replayed.stopReason).toBe("stop");
 		expect(sent).toEqual([{ cyber: "daybreak_blue" }, undefined]);
@@ -102,7 +107,7 @@ describe("openai-codex cyber access programs", () => {
 		expect(sent).toEqual([undefined]);
 	});
 
-	it("omits Daybreak Blue for eligible accounts while the host switch is off", async () => {
+	it("omits discovered Daybreak programs while the host switch is off", async () => {
 		const accountId = "acct-daybreak-switch";
 		const switchModel = createCodexModel("gpt-6-sol-switch", {
 			preferWebsockets: false,
